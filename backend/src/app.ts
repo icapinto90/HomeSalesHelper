@@ -9,13 +9,35 @@ import { env } from './config/env'
 import { logger } from './utils/logger'
 import { errorHandler } from './middleware/error'
 import { healthRoutes } from './routes/health'
+import { authRoutes } from './routes/auth'
 import { listingRoutes } from './routes/listings'
+import { photoRoutes } from './routes/photos'
+import { aiRoutes } from './routes/ai'
+import { pricingRoutes } from './routes/pricing'
+import { publishRoutes } from './routes/publish'
+import { platformAccountRoutes } from './routes/platform-accounts'
+import { messageRoutes } from './routes/messages'
+import { stripeRoutes } from './routes/stripe'
 
 export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
   const prisma = new PrismaClient()
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null })
 
-  const app = Fastify({ logger: logger as any })
+  const app = Fastify({
+    logger: logger as any,
+    // Expose rawBody for Stripe webhook signature verification
+    bodyLimit: 10 * 1024 * 1024, // 10 MB
+  })
+
+  // Store raw body for Stripe webhook
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    ;(req as any).rawBody = body
+    try {
+      done(null, JSON.parse(body.toString()))
+    } catch (err) {
+      done(err as Error, undefined)
+    }
+  })
 
   // ── Plugins ───────────────────────────────────────────────────────────────
   await app.register(helmet)
@@ -33,7 +55,15 @@ export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   await app.register(healthRoutes)
+  await app.register(authRoutes, { prefix: '/auth', prisma })
   await app.register(listingRoutes, { prefix: '/listings', prisma })
+  await app.register(photoRoutes, { prefix: '/photos', prisma })
+  await app.register(aiRoutes, { prefix: '/ai', prisma })
+  await app.register(pricingRoutes, { prefix: '/pricing', prisma })
+  await app.register(publishRoutes, { prefix: '/listings', prisma })
+  await app.register(platformAccountRoutes, { prefix: '/platform-accounts', prisma })
+  await app.register(messageRoutes, { prefix: '/messages', prisma })
+  await app.register(stripeRoutes, { prefix: '/stripe', prisma })
 
   // ── Graceful shutdown ─────────────────────────────────────────────────────
   const shutdown = async (): Promise<void> => {

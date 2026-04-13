@@ -1,0 +1,1076 @@
+openapi: "3.1.0"
+info:
+  title: Home Sale Helper API
+  version: "0.1.0"
+  description: |
+    REST API for the Home Sale Helper micro-SaaS.
+    Handles listings, AI generation, photo upload, cross-platform publishing, messaging, and subscriptions.
+  contact:
+    name: Backend Developer
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.homesalehelper.app
+    description: Production (Railway)
+
+tags:
+  - name: Auth
+    description: Supabase-backed authentication
+  - name: Listings
+    description: Listing CRUD operations
+  - name: Photos
+    description: Photo upload to Supabase Storage
+  - name: AI
+    description: Object identification and listing generation
+  - name: Pricing
+    description: Market price suggestions via eBay
+  - name: Publish
+    description: Cross-platform publishing via BullMQ
+  - name: Platform Accounts
+    description: OAuth connections to marketplaces
+  - name: Messages
+    description: Unified buyer messaging inbox
+  - name: Stripe
+    description: Subscription management
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+        expiresAt:
+          type: integer
+          description: Unix timestamp of token expiry
+
+    PlatformListing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [EBAY, FACEBOOK, POSHMARK, OFFERUP]
+        status:
+          type: string
+          enum: [PENDING, ACTIVE, FAILED, SOLD, REMOVED]
+        externalId:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        errorMsg:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Listing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+          enum: [USD, EUR, CAD, GBP]
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        category:
+          type: string
+          nullable: true
+        detectedAttributes:
+          type: object
+          nullable: true
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, SOLD, ARCHIVED]
+        language:
+          type: string
+          enum: [en, fr, es]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        platformListings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformListing"
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        listingId:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [EBAY, FACEBOOK, POSHMARK, OFFERUP]
+        buyerName:
+          type: string
+          nullable: true
+        buyerId:
+          type: string
+          nullable: true
+        content:
+          type: string
+        direction:
+          type: string
+          enum: [INBOUND, OUTBOUND]
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [FREE, ACTIVE, CANCELLED, PAST_DUE]
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ── Health ────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      summary: Liveness probe
+      tags: [Auth]
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  env:
+                    type: string
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  /auth/signup:
+    post:
+      summary: Create account and return JWT
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error or email already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      summary: Authenticate and return JWT
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      summary: Invalidate current session
+      tags: [Auth]
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refreshToken:
+                    type: string
+                  expiresAt:
+                    type: integer
+        "401":
+          description: Invalid or expired refresh token
+
+  # ── Listings ──────────────────────────────────────────────────────────────
+  /listings:
+    get:
+      summary: List my listings
+      tags: [Listings]
+      responses:
+        "200":
+          description: Array of listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+    post:
+      summary: Create a new listing (DRAFT)
+      tags: [Listings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, price]
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+                description:
+                  type: string
+                  maxLength: 5000
+                price:
+                  type: number
+                  minimum: 0.01
+                currency:
+                  type: string
+                  enum: [USD, EUR, CAD, GBP]
+                  default: USD
+                category:
+                  type: string
+                language:
+                  type: string
+                  enum: [en, fr, es]
+                  default: en
+      responses:
+        "201":
+          description: Listing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
+  /listings/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get listing by ID
+      tags: [Listings]
+      responses:
+        "200":
+          description: Listing detail with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+    patch:
+      summary: Update listing fields
+      tags: [Listings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                currency:
+                  type: string
+                category:
+                  type: string
+                language:
+                  type: string
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+    delete:
+      summary: Archive a listing
+      tags: [Listings]
+      responses:
+        "204":
+          description: Archived
+
+  /listings/{id}/sold:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Mark listing as sold
+      tags: [Listings]
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
+  # ── Photos ────────────────────────────────────────────────────────────────
+  /photos/upload:
+    post:
+      summary: Upload photos to Supabase Storage (multipart, max 10 files, 20MB each)
+      tags: [Photos]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          description: Uploaded photo URLs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  urls:
+                    type: array
+                    items:
+                      type: string
+                      format: uri
+        "400":
+          description: No files or unsupported type
+
+  /photos:
+    delete:
+      summary: Delete photos from Supabase Storage
+      tags: [Photos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [urls]
+              properties:
+                urls:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+      responses:
+        "204":
+          description: Deleted
+
+  # ── AI ────────────────────────────────────────────────────────────────────
+  /ai/identify:
+    post:
+      summary: Identify object in photo via Google Vision API
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imageUrl]
+              properties:
+                imageUrl:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: Detected attributes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attributes:
+                    type: object
+                    properties:
+                      labels:
+                        type: array
+                        items:
+                          type: string
+                      objects:
+                        type: array
+                        items:
+                          type: string
+                      colors:
+                        type: array
+                        items:
+                          type: string
+                      detectedText:
+                        type: string
+                        nullable: true
+                      suggestedCategory:
+                        type: string
+                        nullable: true
+
+  /ai/generate:
+    post:
+      summary: Generate listing title + description using GPT-4o
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId]
+              properties:
+                listingId:
+                  type: string
+                  format: uuid
+                language:
+                  type: string
+                  enum: [en, fr, es]
+                  default: en
+                tone:
+                  type: string
+                  enum: [casual, professional]
+                  default: casual
+      responses:
+        "200":
+          description: Generated content and updated listing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  listing:
+                    $ref: "#/components/schemas/Listing"
+                  generated:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                      description:
+                        type: string
+                      suggestedTags:
+                        type: array
+                        items:
+                          type: string
+                  tokensUsed:
+                    type: integer
+
+  /ai/suggest-reply:
+    post:
+      summary: Suggest a buyer message reply using GPT-4o
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messageId]
+              properties:
+                messageId:
+                  type: string
+                  format: uuid
+                tone:
+                  type: string
+                  enum: [friendly, professional, firm]
+                  default: friendly
+      responses:
+        "200":
+          description: Suggested reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestedReply:
+                    type: string
+
+  # ── Pricing ───────────────────────────────────────────────────────────────
+  /pricing/suggest:
+    post:
+      summary: Suggest a price based on eBay sold items
+      tags: [Pricing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [keywords]
+              properties:
+                listingId:
+                  type: string
+                  format: uuid
+                  description: If provided, keywords are derived from the listing title
+                keywords:
+                  type: string
+                  maxLength: 200
+                condition:
+                  type: string
+                  enum: [New, "Like New", "Very Good", Good, Acceptable]
+                  default: Good
+                currency:
+                  type: string
+                  enum: [USD, EUR, CAD, GBP]
+                  default: USD
+      responses:
+        "200":
+          description: Price suggestion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keywords:
+                    type: string
+                  sampleSize:
+                    type: integer
+                  currency:
+                    type: string
+                  prices:
+                    type: object
+                    properties:
+                      min:
+                        type: number
+                      max:
+                        type: number
+                      median:
+                        type: number
+                      avg:
+                        type: number
+                  suggested:
+                    type: number
+                    nullable: true
+                  note:
+                    type: string
+
+  # ── Publish ───────────────────────────────────────────────────────────────
+  /listings/{id}/publish:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Publish listing to one or more platforms (async via BullMQ)
+      tags: [Publish]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platforms]
+              properties:
+                platforms:
+                  type: array
+                  items:
+                    type: string
+                    enum: [EBAY, FACEBOOK, POSHMARK, OFFERUP]
+                  minItems: 1
+      responses:
+        "202":
+          description: Publish jobs enqueued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  listingId:
+                    type: string
+                    format: uuid
+                  platforms:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        platform:
+                          type: string
+                        status:
+                          type: string
+                        platformListingId:
+                          type: string
+                          format: uuid
+        "422":
+          description: Missing photos or disconnected platform accounts
+
+  /listings/{id}/publish-status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get publish status per platform
+      tags: [Publish]
+      responses:
+        "200":
+          description: Platform publish statuses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  listingId:
+                    type: string
+                    format: uuid
+                  listingStatus:
+                    type: string
+                  platforms:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PlatformListing"
+
+  # ── Platform Accounts ─────────────────────────────────────────────────────
+  /platform-accounts:
+    get:
+      summary: List connected marketplace accounts
+      tags: [Platform Accounts]
+      responses:
+        "200":
+          description: Connected accounts (no tokens)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    platform:
+                      type: string
+                    platformUserId:
+                      type: string
+                      nullable: true
+                    platformUsername:
+                      type: string
+                      nullable: true
+                    tokenExpiry:
+                      type: string
+                      format: date-time
+                      nullable: true
+                    isActive:
+                      type: boolean
+
+  /platform-accounts/oauth/ebay/url:
+    get:
+      summary: Get eBay OAuth authorization URL
+      tags: [Platform Accounts]
+      responses:
+        "200":
+          description: Auth URL and state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authUrl:
+                    type: string
+                    format: uri
+                  state:
+                    type: string
+
+  /platform-accounts/oauth/ebay/callback:
+    post:
+      summary: Exchange eBay auth code for tokens
+      tags: [Platform Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                state:
+                  type: string
+      responses:
+        "201":
+          description: Account connected
+
+  /platform-accounts/oauth/facebook/url:
+    get:
+      summary: Get Facebook OAuth authorization URL
+      tags: [Platform Accounts]
+      responses:
+        "200":
+          description: Auth URL and state
+
+  /platform-accounts/oauth/facebook/callback:
+    post:
+      summary: Exchange Facebook auth code for long-lived token
+      tags: [Platform Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "201":
+          description: Account connected
+
+  /platform-accounts/{platform}:
+    parameters:
+      - name: platform
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [EBAY, FACEBOOK, POSHMARK, OFFERUP]
+    delete:
+      summary: Disconnect a marketplace account
+      tags: [Platform Accounts]
+      responses:
+        "204":
+          description: Disconnected
+
+  # ── Messages ──────────────────────────────────────────────────────────────
+  /messages:
+    get:
+      summary: List inbox messages (filterable by platform, listing, unread)
+      tags: [Messages]
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: listingId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      summary: Record an inbound buyer message
+      tags: [Messages]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId, platform, content]
+              properties:
+                listingId:
+                  type: string
+                  format: uuid
+                platform:
+                  type: string
+                  enum: [EBAY, FACEBOOK, POSHMARK, OFFERUP]
+                buyerName:
+                  type: string
+                buyerId:
+                  type: string
+                content:
+                  type: string
+                externalId:
+                  type: string
+      responses:
+        "201":
+          description: Message recorded
+
+  /messages/threads:
+    get:
+      summary: Get conversation threads grouped by listing + buyer
+      tags: [Messages]
+      responses:
+        "200":
+          description: Threads
+
+  /messages/unread-count:
+    get:
+      summary: Get total unread inbound message count
+      tags: [Messages]
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unreadCount:
+                    type: integer
+
+  /messages/listing/{listingId}:
+    parameters:
+      - name: listingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get all messages for a listing and mark them read
+      tags: [Messages]
+      responses:
+        "200":
+          description: Messages
+
+  /messages/{id}/read:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Mark a message as read
+      tags: [Messages]
+      responses:
+        "200":
+          description: Updated message
+
+  # ── Stripe ────────────────────────────────────────────────────────────────
+  /stripe/subscription:
+    get:
+      summary: Get current subscription status
+      tags: [Stripe]
+      responses:
+        "200":
+          description: Subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /stripe/checkout:
+    post:
+      summary: Create Stripe Checkout Session ($9.99/month)
+      tags: [Stripe]
+      responses:
+        "200":
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkoutUrl:
+                    type: string
+                    format: uri
+                  sessionId:
+                    type: string
+
+  /stripe/portal:
+    post:
+      summary: Create Stripe Customer Portal session (manage billing)
+      tags: [Stripe]
+      responses:
+        "200":
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portalUrl:
+                    type: string
+                    format: uri
+
+  /stripe/webhook:
+    post:
+      summary: Stripe webhook endpoint (signature verified)
+      tags: [Stripe]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Webhook received
+        "400":
+          description: Invalid signature
