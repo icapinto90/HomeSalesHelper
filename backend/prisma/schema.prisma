@@ -1,0 +1,175 @@
+// Home Sale Helper — Prisma Schema
+// Database: PostgreSQL via Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  ARCHIVED
+}
+
+enum PlatformStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  SOLD
+  REMOVED
+}
+
+enum Platform {
+  EBAY
+  FACEBOOK
+  POSHMARK
+  OFFERUP
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SubscriptionStatus {
+  FREE
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Profil utilisateur synchronisé depuis Supabase Auth
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings         Listing[]
+  platformAccounts PlatformAccount[]
+  messages         Message[]
+  subscription     Subscription?
+
+  @@map("users")
+}
+
+/// Annonce (objet à vendre)
+model Listing {
+  id                 String        @id @default(uuid()) @db.Uuid
+  userId             String        @db.Uuid
+  title              String
+  description        String        @db.Text
+  price              Decimal       @db.Decimal(10, 2)
+  currency           String        @default("USD") @db.VarChar(3)
+  photos             String[]      // Supabase Storage URLs
+  category           String?
+  detectedAttributes Json?         // { brand, condition, color, size, ... }
+  status             ListingStatus @default(DRAFT)
+  language           String        @default("en") @db.VarChar(5)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformListings PlatformListing[]
+  messages         Message[]
+
+  @@index([userId, status])
+  @@map("listings")
+}
+
+/// Statut de publication par marketplace
+model PlatformListing {
+  id          String         @id @default(uuid()) @db.Uuid
+  listingId   String         @db.Uuid
+  platform    Platform
+  externalId  String?        // ID de l'annonce sur la plateforme externe
+  status      PlatformStatus @default(PENDING)
+  url         String?        // URL publique sur la plateforme
+  errorMsg    String?        // Dernier message d'erreur en cas d'échec
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, platform])
+  @@index([listingId])
+  @@map("platform_listings")
+}
+
+/// Comptes marketplace connectés (tokens OAuth chiffrés AES-256-GCM)
+model PlatformAccount {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  platform         Platform
+  // Stored as: iv:authTag:ciphertext (hex-encoded, AES-256-GCM)
+  accessToken      String    @db.Text
+  refreshToken     String?   @db.Text
+  tokenExpiry      DateTime?
+  platformUserId   String?
+  platformUsername String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@index([userId])
+  @@map("platform_accounts")
+}
+
+/// Messagerie unifiée multi-plateformes
+model Message {
+  id         String           @id @default(uuid()) @db.Uuid
+  listingId  String           @db.Uuid
+  userId     String           @db.Uuid
+  platform   Platform
+  buyerName  String?
+  buyerId    String?          // ID acheteur côté plateforme
+  content    String           @db.Text
+  direction  MessageDirection
+  externalId String?          // ID du message côté plateforme
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([userId, readAt])
+  @@map("messages")
+}
+
+/// Abonnement Stripe
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @unique @db.Uuid
+  stripeCustomerId String?            @unique
+  stripeSubId      String?            @unique
+  status           SubscriptionStatus @default(FREE)
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
