@@ -20,14 +20,14 @@ export default function PlatformsScreen() {
     accountsApi.list().then(setAccounts).catch(() => {});
   }, []);
 
-  const isConnected = (p: Platform) => accounts.some((a) => a.platform === p && a.connected);
+  const isConnected = (p: Platform) => accounts.some((a) => a.platform === p && a.isActive);
 
   const handleConnect = async (platform: Platform) => {
     setConnecting(platform);
     try {
-      const { authUrl } = await accountsApi.connect(platform);
-      // In real app: open authUrl via expo-web-browser
-      // After callback, refresh accounts list
+      const { url } = await accountsApi.getOAuthUrl(platform);
+      // In a real build: open `url` via expo-web-browser, wait for callback
+      // After callback the backend exchanges the code and saves the token
       const updated = await accountsApi.list();
       setAccounts(updated);
     } catch {

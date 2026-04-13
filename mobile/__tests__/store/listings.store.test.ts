@@ -8,6 +8,7 @@ beforeEach(() => {
     error: null,
     draft: {
       photoUris: [],
+      uploadedPhotoUrls: [],
       overrides: {},
       selectedPlatforms: [],
     },
@@ -64,12 +65,15 @@ describe('listings store — listings CRUD helpers', () => {
   it('getListing finds listing by id', () => {
     const mockListing = {
       id: 'abc',
+      userId: 'user1',
       title: 'Test',
       description: '',
       price: 50,
+      currency: 'USD' as const,
       status: 'ACTIVE' as const,
-      photos: [],
-      platforms: [],
+      photos: [] as string[],
+      platformListings: [],
+      language: 'en' as const,
       createdAt: '',
       updatedAt: '',
     };

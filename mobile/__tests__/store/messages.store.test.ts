@@ -2,7 +2,7 @@ import { useMessagesStore } from '../../src/store/messages.store';
 
 beforeEach(() => {
   useMessagesStore.setState({
-    conversations: [],
+    threads: [],
     activeMessages: [],
     activeSuggestions: [],
     loading: false,
@@ -11,13 +11,13 @@ beforeEach(() => {
 });
 
 describe('messages store', () => {
-  it('totalUnread returns 0 when no conversations', () => {
+  it('totalUnread returns 0 when no threads', () => {
     expect(useMessagesStore.getState().totalUnread()).toBe(0);
   });
 
-  it('totalUnread sums unread counts', () => {
+  it('totalUnread sums unread counts across threads', () => {
     useMessagesStore.setState({
-      conversations: [
+      threads: [
         {
           listingId: '1',
           listing: { id: '1', title: 'Item', price: 10, photos: [], status: 'ACTIVE' },
@@ -26,7 +26,6 @@ describe('messages store', () => {
           lastMessage: 'Is it available?',
           unreadCount: 3,
           updatedAt: '',
-          messages: [],
         },
         {
           listingId: '2',
@@ -36,7 +35,6 @@ describe('messages store', () => {
           lastMessage: 'Can you lower the price?',
           unreadCount: 1,
           updatedAt: '',
-          messages: [],
         },
       ],
     } as never);

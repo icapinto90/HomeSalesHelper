@@ -1,15 +1,22 @@
 import { api } from './client';
-import type { Message, Conversation } from '../types';
+import type { Message, MessageThread } from '../types';
 
 export const messagesApi = {
-  getInbox: () => api.get<Conversation[]>('/messages'),
+  /** GET /messages/threads — conversations grouped by listing + buyer */
+  getThreads: () => api.get<MessageThread[]>('/messages/threads'),
 
-  getThread: (listingId: string) =>
-    api.get<Message[]>(`/messages/${listingId}`),
+  /** GET /messages/listing/{listingId} — messages for a listing (marks them read) */
+  getByListing: (listingId: string) =>
+    api.get<Message[]>(`/messages/listing/${listingId}`),
 
+  /** GET /messages/unread-count */
+  getUnreadCount: () => api.get<{ unreadCount: number }>('/messages/unread-count'),
+
+  /** POST /messages/{id}/reply */
   reply: (messageId: string, content: string) =>
     api.post<Message>(`/messages/${messageId}/reply`, { content }),
 
-  getSuggestions: (messageId: string) =>
-    api.post<string[]>('/messages/suggestions', { messageId }),
+  /** POST /messages/{id}/read */
+  markRead: (messageId: string) =>
+    api.post<void>(`/messages/${messageId}/read`),
 };

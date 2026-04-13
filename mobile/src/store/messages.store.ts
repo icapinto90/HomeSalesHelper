@@ -1,15 +1,16 @@
 import { create } from 'zustand';
 import { messagesApi } from '../api/messages';
-import type { Conversation, Message } from '../types';
+import { aiApi } from '../api/ai';
+import type { Message, MessageThread } from '../types';
 
 interface MessagesState {
-  conversations: Conversation[];
+  threads: MessageThread[];
   activeMessages: Message[];
   activeSuggestions: string[];
   loading: boolean;
   error: string | null;
 
-  fetchInbox: () => Promise<void>;
+  fetchThreads: () => Promise<void>;
   fetchThread: (listingId: string) => Promise<void>;
   reply: (messageId: string, content: string) => Promise<void>;
   fetchSuggestions: (messageId: string) => Promise<void>;
@@ -18,17 +19,17 @@ interface MessagesState {
 }
 
 export const useMessagesStore = create<MessagesState>((set, get) => ({
-  conversations: [],
+  threads: [],
   activeMessages: [],
   activeSuggestions: [],
   loading: false,
   error: null,
 
-  fetchInbox: async () => {
+  fetchThreads: async () => {
     set({ loading: true, error: null });
     try {
-      const conversations = await messagesApi.getInbox();
-      set({ conversations, loading: false });
+      const threads = await messagesApi.getThreads();
+      set({ threads, loading: false });
     } catch (e) {
       set({ error: String(e), loading: false });
     }
@@ -37,7 +38,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   fetchThread: async (listingId) => {
     set({ loading: true });
     try {
-      const messages = await messagesApi.getThread(listingId);
+      const messages = await messagesApi.getByListing(listingId);
       set({ activeMessages: messages, loading: false });
     } catch (e) {
       set({ error: String(e), loading: false });
@@ -50,12 +51,12 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   },
 
   fetchSuggestions: async (messageId) => {
-    const suggestions = await messagesApi.getSuggestions(messageId);
-    set({ activeSuggestions: suggestions });
+    const result = await aiApi.suggestReply(messageId);
+    set({ activeSuggestions: result.suggestions });
   },
 
   clearSuggestions: () => set({ activeSuggestions: [] }),
 
   totalUnread: () =>
-    get().conversations.reduce((acc, c) => acc + c.unreadCount, 0),
+    get().threads.reduce((acc, t) => acc + t.unreadCount, 0),
 }));

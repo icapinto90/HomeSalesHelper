@@ -61,9 +61,9 @@ export default function ProfileScreen() {
                 <View key={acc.platform} className="flex-row items-center justify-between py-1">
                   <View className="flex-row items-center gap-2">
                     <PlatformBadge platform={acc.platform as Platform} />
-                    <Text className="text-neutral-600 text-sm">{acc.username ?? acc.platform}</Text>
+                    <Text className="text-neutral-600 text-sm">{acc.platformUsername ?? acc.platform}</Text>
                   </View>
-                  {acc.connected ? (
+                  {acc.isActive ? (
                     <Text className="text-secondary text-sm font-medium">Connected</Text>
                   ) : (
                     <TouchableOpacity onPress={() => router.push('/(auth)/platforms')}>

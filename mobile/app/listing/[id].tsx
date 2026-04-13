@@ -115,10 +115,10 @@ export default function ListingDetailScreen() {
                 const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
                 setPhotoIndex(idx);
               }}
-              keyExtractor={(p) => p.id}
-              renderItem={({ item }) => (
+              keyExtractor={(url, i) => url + i}
+              renderItem={({ item: url }) => (
                 <Image
-                  source={{ uri: item.url }}
+                  source={{ uri: url }}
                   style={{ width: SCREEN_WIDTH, height: 300 }}
                   resizeMode="cover"
                 />
@@ -152,12 +152,12 @@ export default function ListingDetailScreen() {
           </View>
 
           {/* Item details */}
-          {(listing.category || listing.condition || listing.brand) && (
+          {(listing.category || listing.detectedAttributes) && (
             <View className="bg-neutral-100 rounded-card p-3 gap-2">
               {[
                 { label: 'Category', value: listing.category },
-                { label: 'Condition', value: listing.condition },
-                { label: 'Brand', value: listing.brand },
+                { label: 'Condition', value: listing.detectedAttributes?.condition as string | undefined },
+                { label: 'Brand', value: listing.detectedAttributes?.brand as string | undefined },
               ]
                 .filter((r) => r.value)
                 .map((r) => (
@@ -178,21 +178,21 @@ export default function ListingDetailScreen() {
           )}
 
           {/* Platform statuses */}
-          {listing.platforms.length > 0 && (
+          {listing.platformListings.length > 0 && (
             <View className="gap-2">
               <Text className="font-semibold text-neutral-900">Platform Status</Text>
-              {listing.platforms.map((p) => (
+              {listing.platformListings.map((p) => (
                 <View
                   key={p.platform}
                   className="flex-row items-center justify-between bg-neutral-100 rounded-card p-3"
                 >
                   <PlatformBadge platform={p.platform} />
                   <StatusBadge status={p.status as never} />
-                  {p.externalUrl && (
+                  {p.url && (
                     <Text className="text-primary text-xs">View ↗</Text>
                   )}
-                  {p.failureReason && (
-                    <Text className="text-error text-xs">{p.failureReason}</Text>
+                  {p.errorMsg && (
+                    <Text className="text-error text-xs">{p.errorMsg}</Text>
                   )}
                 </View>
               ))}

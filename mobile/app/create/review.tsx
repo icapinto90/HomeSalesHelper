@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Stepper } from '../../src/components/create/Stepper';
@@ -7,45 +7,26 @@ import { Button } from '../../src/components/ui/Button';
 import { AIBadge } from '../../src/components/ui/Badge';
 import { Input } from '../../src/components/ui/Input';
 import { useListingsStore } from '../../src/store/listings.store';
-import { listingsApi } from '../../src/api/listings';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 
 export default function ReviewStep() {
-  const { draft, setDraftAiResult, setDraftOverrides, setDraftListingId, runAiIdentify } =
-    useListingsStore();
+  const { draft, setDraftOverrides, runAiIdentify } = useListingsStore();
   const [identifying, setIdentifying] = useState(!draft.aiResult);
-  const [uploading, setUploading] = useState(false);
 
-  // AI identification + photo upload
+  // Upload photos + run AI identification
   useEffect(() => {
     if (draft.aiResult) return;
-    const run = async () => {
-      setIdentifying(true);
-      try {
-        // 1. Create a draft listing and upload photos
-        const listing = await listingsApi.create({});
-        setDraftListingId(listing.id);
-        const withPhotos = await listingsApi.uploadPhotos(listing.id, draft.photoUris);
-        const photoUrls = withPhotos.photos.map((p) => p.url);
-
-        // 2. Run AI identification
-        await runAiIdentify(photoUrls);
-      } catch {
-        // AI failed silently; user can fill manually
-      } finally {
-        setIdentifying(false);
-      }
-    };
-    run();
+    setIdentifying(true);
+    runAiIdentify()
+      .catch(() => {
+        // AI failed silently — user can fill manually
+      })
+      .finally(() => setIdentifying(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ai = { ...draft.aiResult, ...draft.overrides };
-
-  const handleContinue = () => {
-    router.push('/create/pricing');
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
@@ -57,9 +38,9 @@ export default function ReviewStep() {
         {identifying ? (
           <View className="bg-primary-light rounded-card p-6 items-center gap-3">
             <ActivityIndicator color="#5B4FE9" size="large" />
-            <Text className="text-primary font-medium">Identifying your item…</Text>
+            <Text className="text-primary font-medium">Uploading & identifying…</Text>
             <Text className="text-neutral-600 text-sm text-center">
-              Our AI is analyzing your photos to identify the item.
+              Uploading your photos and running AI identification.
             </Text>
           </View>
         ) : (
@@ -116,7 +97,7 @@ export default function ReviewStep() {
               <Input
                 label="Color"
                 value={ai.color ?? ''}
-                onChangeText={(v) => setDraftOverrides({ color: v } as Partial<typeof ai>)}
+                onChangeText={(v) => setDraftOverrides({ color: v })}
                 placeholder="e.g. White"
               />
             </View>
@@ -131,7 +112,7 @@ export default function ReviewStep() {
           size="lg"
           fullWidth
           disabled={identifying}
-          onPress={handleContinue}
+          onPress={() => router.push('/create/pricing')}
         />
       </View>
     </SafeAreaView>

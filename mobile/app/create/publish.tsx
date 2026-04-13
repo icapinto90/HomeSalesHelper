@@ -28,7 +28,7 @@ export default function PublishStep() {
     accountsApi.list().then(setAccounts).catch(() => {});
   }, []);
 
-  const isConnected = (p: Platform) => accounts.some((a) => a.platform === p && a.connected);
+  const isConnected = (p: Platform) => accounts.some((a) => a.platform === p && a.isActive);
 
   const togglePlatform = (p: Platform) => {
     if (!isConnected(p)) return;

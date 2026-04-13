@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMessagesStore } from '../../src/store/messages.store';
 import { PlatformBadge } from '../../src/components/ui/Badge';
-import type { Conversation } from '../../src/types';
+import type { MessageThread } from '../../src/types';
 
-function ConversationRow({ item }: { item: Conversation }) {
+function ThreadRow({ item }: { item: MessageThread }) {
   return (
     <TouchableOpacity
       onPress={() => router.push(`/conversation/${item.listingId}?platform=${item.platform}`)}
@@ -15,11 +15,7 @@ function ConversationRow({ item }: { item: Conversation }) {
     >
       {/* Avatar */}
       <View className="w-12 h-12 bg-primary-light rounded-full items-center justify-center overflow-hidden">
-        {item.buyerAvatar ? (
-          <Image source={{ uri: item.buyerAvatar }} className="w-12 h-12" />
-        ) : (
-          <Text className="text-primary text-lg font-bold">{item.buyerName.charAt(0)}</Text>
-        )}
+        <Text className="text-primary text-lg font-bold">{item.buyerName.charAt(0)}</Text>
       </View>
 
       <View className="flex-1 gap-1">
@@ -52,9 +48,9 @@ function ConversationRow({ item }: { item: Conversation }) {
 }
 
 export default function MessagesScreen() {
-  const { conversations, fetchInbox, loading } = useMessagesStore();
+  const { threads, fetchThreads, loading } = useMessagesStore();
 
-  const refresh = useCallback(() => fetchInbox(), [fetchInbox]);
+  const refresh = useCallback(() => fetchThreads(), [fetchThreads]);
 
   useEffect(() => {
     refresh();
@@ -67,7 +63,7 @@ export default function MessagesScreen() {
       </View>
 
       <FlatList
-        data={conversations}
+        data={threads}
         keyExtractor={(item) => `${item.listingId}-${item.platform}`}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
         ListEmptyComponent={
@@ -76,7 +72,7 @@ export default function MessagesScreen() {
             <Text className="text-neutral-600 text-center">No messages yet.</Text>
           </View>
         }
-        renderItem={({ item }) => <ConversationRow item={item} />}
+        renderItem={({ item }) => <ThreadRow item={item} />}
       />
     </SafeAreaView>
   );

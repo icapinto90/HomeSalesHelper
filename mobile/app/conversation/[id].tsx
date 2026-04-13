@@ -62,11 +62,11 @@ export default function ConversationScreen() {
   const flatRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    fetchThread(id);
-    if (activeMessages.length > 0) {
-      const lastInbound = [...activeMessages].reverse().find((m) => m.direction === 'INBOUND');
+    fetchThread(id).then(() => {
+      const msgs = useMessagesStore.getState().activeMessages;
+      const lastInbound = [...msgs].reverse().find((m) => m.direction === 'INBOUND');
       if (lastInbound) fetchSuggestions(lastInbound.id);
-    }
+    });
     return () => clearSuggestions();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -107,7 +107,7 @@ export default function ConversationScreen() {
         >
           {listing.photos[0] && (
             <Image
-              source={{ uri: listing.photos[0].url }}
+              source={{ uri: listing.photos[0] }}
               className="w-10 h-10 rounded-card"
               resizeMode="cover"
             />

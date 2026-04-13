@@ -5,47 +5,56 @@ export type PlatformStatus = 'PENDING' | 'ACTIVE' | 'FAILED' | 'SOLD' | 'REMOVED
 export type Platform = 'EBAY' | 'FACEBOOK' | 'POSHMARK' | 'OFFERUP';
 export type MessageDirection = 'INBOUND' | 'OUTBOUND';
 export type SubscriptionPlan = 'FREE' | 'SUBSCRIPTION' | 'COMMISSION';
+export type Language = 'en' | 'fr' | 'es';
+export type Currency = 'USD' | 'EUR' | 'CAD' | 'GBP';
 
 // ─── Listing ──────────────────────────────────────────────────────────────────
 
-export interface Photo {
-  id: string;
-  url: string;
-  order: number;
-}
-
+/** Per openapi.yaml — photos is a flat array of URLs */
 export interface PlatformListing {
   id: string;
   platform: Platform;
   status: PlatformStatus;
-  externalId?: string;
-  externalUrl?: string;
-  failureReason?: string;
+  externalId?: string | null;
+  /** External listing URL on the marketplace */
+  url?: string | null;
+  errorMsg?: string | null;
+  publishedAt?: string | null;
 }
 
 export interface Listing {
   id: string;
+  userId: string;
   title: string;
   description: string;
   price: number;
+  currency: Currency;
+  /** Flat array of photo URLs (Supabase Storage) */
+  photos: string[];
+  category?: string | null;
+  detectedAttributes?: Record<string, unknown> | null;
   status: ListingStatus;
-  category?: string;
-  condition?: string;
-  brand?: string;
-  photos: Photo[];
-  platforms: PlatformListing[];
-  detectedAttributes?: Record<string, string>;
+  language: Language;
   createdAt: string;
   updatedAt: string;
+  platformListings: PlatformListing[];
 }
 
 export interface CreateListingInput {
-  title?: string;
-  description?: string;
-  price?: number;
+  title: string;
+  description: string;
+  price: number;
+  currency?: Currency;
   category?: string;
-  condition?: string;
-  brand?: string;
+  language?: Language;
+  /** Pre-uploaded photo URLs from /photos/upload */
+  photos?: string[];
+}
+
+// ─── Photos ───────────────────────────────────────────────────────────────────
+
+export interface PhotoUploadResult {
+  urls: string[];
 }
 
 // ─── AI ───────────────────────────────────────────────────────────────────────
@@ -63,6 +72,8 @@ export interface AIGenerateResult {
   title: string;
   description: string;
 }
+
+export type ReplyTone = 'friendly' | 'professional' | 'firm';
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -82,31 +93,33 @@ export interface Message {
   platform: Platform;
   direction: MessageDirection;
   content: string;
-  buyerName?: string;
-  buyerAvatar?: string;
-  read: boolean;
+  buyerName?: string | null;
+  buyerId?: string | null;
+  readAt?: string | null;
   createdAt: string;
 }
 
-export interface Conversation {
+/** Thread returned by GET /messages/threads */
+export interface MessageThread {
   listingId: string;
   listing: Pick<Listing, 'id' | 'title' | 'price' | 'photos' | 'status'>;
   platform: Platform;
   buyerName: string;
-  buyerAvatar?: string;
+  buyerId?: string;
   lastMessage: string;
   unreadCount: number;
   updatedAt: string;
-  messages: Message[];
 }
 
 // ─── Accounts ─────────────────────────────────────────────────────────────────
 
 export interface PlatformAccount {
+  id: string;
   platform: Platform;
-  connected: boolean;
-  username?: string;
-  connectedAt?: string;
+  platformUserId?: string | null;
+  platformUsername?: string | null;
+  tokenExpiry?: string | null;
+  isActive: boolean;
 }
 
 // ─── Auth / User ──────────────────────────────────────────────────────────────

@@ -17,13 +17,13 @@ import { ListingCard } from '../../src/components/listing/ListingCard';
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { listings, fetchListings, loading } = useListingsStore();
-  const { conversations, fetchInbox, totalUnread } = useMessagesStore();
+  const { fetchThreads, totalUnread } = useMessagesStore();
 
   const unreadCount = totalUnread();
 
   const refresh = useCallback(async () => {
-    await Promise.all([fetchListings(), fetchInbox()]);
-  }, [fetchListings, fetchInbox]);
+    await Promise.all([fetchListings(), fetchThreads()]);
+  }, [fetchListings, fetchThreads]);
 
   useEffect(() => {
     refresh();

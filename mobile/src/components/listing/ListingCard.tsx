@@ -10,8 +10,8 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, compact = false }: ListingCardProps) {
-  const coverPhoto = listing.photos[0]?.url;
-  const activePlatforms = listing.platforms.filter((p) => p.status === 'ACTIVE' || p.status === 'PENDING');
+  const coverPhoto = listing.photos[0]; // photos is string[] of URLs
+  const activePlatforms = listing.platformListings.filter((p) => p.status === 'ACTIVE' || p.status === 'PENDING');
 
   return (
     <TouchableOpacity

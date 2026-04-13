@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { listingsApi } from '../api/listings';
 import { aiApi } from '../api/ai';
 import { pricingApi } from '../api/pricing';
+import { photosApi } from '../api/photos';
 import type {
   Listing,
   AIIdentifyResult,
@@ -13,8 +14,10 @@ import type {
 // ─── Create Listing Draft (stepper state) ─────────────────────────────────────
 
 export interface CreateListingDraft {
+  /** Local file URIs chosen by the user */
   photoUris: string[];
-  uploadedListingId?: string;
+  /** Uploaded photo URLs (from /photos/upload) */
+  uploadedPhotoUrls: string[];
   aiResult?: AIIdentifyResult;
   overrides: Partial<AIIdentifyResult>;
   price?: number;
@@ -26,6 +29,7 @@ export interface CreateListingDraft {
 
 const initialDraft: CreateListingDraft = {
   photoUris: [],
+  uploadedPhotoUrls: [],
   overrides: {},
   selectedPlatforms: [],
 };
@@ -50,11 +54,11 @@ interface ListingsState {
   setDraftPriceSuggestion: (suggestion: PriceSuggestion) => void;
   setDraftText: (title: string, description: string) => void;
   setDraftPlatforms: (platforms: Platform[]) => void;
-  setDraftListingId: (id: string) => void;
   resetDraft: () => void;
 
   // Async draft steps
-  runAiIdentify: (photoUrls: string[]) => Promise<AIIdentifyResult>;
+  runPhotoUpload: () => Promise<string[]>;
+  runAiIdentify: () => Promise<AIIdentifyResult>;
   runAiGenerate: () => Promise<void>;
   fetchPriceSuggestion: () => Promise<void>;
   publishDraft: () => Promise<Listing>;
@@ -90,7 +94,7 @@ export const useListingsStore = create<ListingsState>((set, get) => ({
 
   // ── Draft helpers ────────────────────────────────────────────────────────────
   setDraftPhotos: (uris) =>
-    set((s) => ({ draft: { ...s.draft, photoUris: uris } })),
+    set((s) => ({ draft: { ...s.draft, photoUris: uris, uploadedPhotoUrls: [] } })),
 
   setDraftAiResult: (result) =>
     set((s) => ({ draft: { ...s.draft, aiResult: result } })),
@@ -102,7 +106,9 @@ export const useListingsStore = create<ListingsState>((set, get) => ({
     set((s) => ({ draft: { ...s.draft, price } })),
 
   setDraftPriceSuggestion: (priceSuggestion) =>
-    set((s) => ({ draft: { ...s.draft, priceSuggestion, price: priceSuggestion.recommended } })),
+    set((s) => ({
+      draft: { ...s.draft, priceSuggestion, price: priceSuggestion.recommended },
+    })),
 
   setDraftText: (title, description) =>
     set((s) => ({ draft: { ...s.draft, title, description } })),
@@ -110,18 +116,28 @@ export const useListingsStore = create<ListingsState>((set, get) => ({
   setDraftPlatforms: (selectedPlatforms) =>
     set((s) => ({ draft: { ...s.draft, selectedPlatforms } })),
 
-  setDraftListingId: (id) =>
-    set((s) => ({ draft: { ...s.draft, uploadedListingId: id } })),
-
   resetDraft: () => set({ draft: initialDraft }),
 
   // ── Async steps ──────────────────────────────────────────────────────────────
-  runAiIdentify: async (photoUrls) => {
+
+  /** Step 1b: upload local URIs to Supabase Storage via /photos/upload */
+  runPhotoUpload: async () => {
+    const { draft } = get();
+    if (draft.uploadedPhotoUrls.length > 0) return draft.uploadedPhotoUrls;
+    const urls = await photosApi.upload(draft.photoUris);
+    set((s) => ({ draft: { ...s.draft, uploadedPhotoUrls: urls } }));
+    return urls;
+  },
+
+  /** Step 2: AI identify from uploaded URLs */
+  runAiIdentify: async () => {
+    const photoUrls = await get().runPhotoUpload();
     const result = await aiApi.identify(photoUrls);
     set((s) => ({ draft: { ...s.draft, aiResult: result } }));
     return result;
   },
 
+  /** Step 4: AI generate title + description */
   runAiGenerate: async () => {
     const { draft } = get();
     const ai = { ...draft.aiResult, ...draft.overrides };
@@ -137,13 +153,14 @@ export const useListingsStore = create<ListingsState>((set, get) => ({
     }));
   },
 
+  /** Step 3: fetch price suggestion */
   fetchPriceSuggestion: async () => {
     const { draft } = get();
     const ai = { ...draft.aiResult, ...draft.overrides };
     if (!ai.category) return;
+    const keywords = [ai.brand, ai.category, ai.condition].filter(Boolean).join(' ');
     const suggestion = await pricingApi.getSuggestions({
-      category: ai.category,
-      brand: ai.brand,
+      keywords,
       condition: ai.condition,
     });
     set((s) => ({
@@ -151,34 +168,34 @@ export const useListingsStore = create<ListingsState>((set, get) => ({
     }));
   },
 
+  /** Step 5: upload photos (if not done), create listing, publish */
   publishDraft: async () => {
     const { draft } = get();
-    const ai = { ...draft.aiResult, ...draft.overrides };
 
-    // 1. Create listing
+    // 1. Ensure photos are uploaded
+    const photoUrls =
+      draft.uploadedPhotoUrls.length > 0
+        ? draft.uploadedPhotoUrls
+        : await get().runPhotoUpload();
+
+    // 2. Create listing with all collected data
     const input: CreateListingInput = {
-      title: draft.title,
-      description: draft.description,
-      price: draft.price,
-      category: ai.category,
-      condition: ai.condition,
-      brand: ai.brand,
+      title: draft.title ?? '',
+      description: draft.description ?? '',
+      price: draft.price ?? 0,
+      category: draft.aiResult?.category ?? draft.overrides.category,
+      photos: photoUrls,
     };
-    let listing = draft.uploadedListingId
-      ? await listingsApi.update(draft.uploadedListingId, input)
-      : await listingsApi.create(input);
+    const listing = await listingsApi.create(input);
 
-    // 2. Upload photos if not yet uploaded
-    if (!draft.uploadedListingId && draft.photoUris.length > 0) {
-      listing = await listingsApi.uploadPhotos(listing.id, draft.photoUris);
-    }
+    // 3. Publish to selected platforms (async jobs on backend)
+    await listingsApi.publish(listing.id, draft.selectedPlatforms);
 
-    // 3. Publish to selected platforms
-    listing = await listingsApi.publish(listing.id, draft.selectedPlatforms);
+    // 4. Fetch updated listing with platformListings status
+    const updated = await listingsApi.get(listing.id);
 
-    // 4. Update listings list
-    set((s) => ({ listings: [listing, ...s.listings] }));
-
-    return listing;
+    // 5. Prepend to local list
+    set((s) => ({ listings: [updated, ...s.listings] }));
+    return updated;
   },
 }));

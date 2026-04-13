@@ -8,28 +8,16 @@ export const listingsApi = {
 
   create: (input: CreateListingInput) => api.post<Listing>('/listings', input),
 
-  update: (id: string, input: Partial<CreateListingInput & { price: number }>) =>
+  update: (id: string, input: Partial<Omit<CreateListingInput, 'photos'>>) =>
     api.patch<Listing>(`/listings/${id}`, input),
 
   remove: (id: string) => api.delete<void>(`/listings/${id}`),
 
-  uploadPhotos: (id: string, uris: string[]) => {
-    const form = new FormData();
-    uris.forEach((uri, i) => {
-      form.append('photos', {
-        uri,
-        name: `photo_${i}.jpg`,
-        type: 'image/jpeg',
-      } as unknown as Blob);
-    });
-    return api.upload<Listing>(`/listings/${id}/photos`, form);
-  },
-
-  deletePhoto: (listingId: string, photoId: string) =>
-    api.delete<void>(`/listings/${listingId}/photos/${photoId}`),
-
   publish: (id: string, platforms: Platform[]) =>
-    api.post<Listing>(`/listings/${id}/publish`, { platforms }),
+    api.post<{ jobIds: string[] }>(`/listings/${id}/publish`, { platforms }),
+
+  publishStatus: (id: string) =>
+    api.get<Record<Platform, { status: string; url?: string }>>(`/listings/${id}/publish-status`),
 
   markSold: (id: string) => api.patch<Listing>(`/listings/${id}/sold`, {}),
 };
