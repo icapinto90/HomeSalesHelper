@@ -32,9 +32,9 @@ export async function messageRoutes(
       listingId?: string
     }
 
-    const where: Parameters<typeof prisma.message.findMany>[0]['where'] = {
-      userId: request.userId,
-    }
+const where: Prisma.MessageWhereInput = {
+  userId: request.userId,
+}
     if (unread === 'true') where.readAt = null
     if (platform) where.platform = platform.toUpperCase() as Platform
     if (listingId) where.listingId = listingId
