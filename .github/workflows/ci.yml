@@ -75,6 +75,11 @@ jobs:
           DIRECT_URL: postgresql://test:test@localhost:5432/homesalehelper_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_SECRET: ci-test-jwt-secret-min-32-chars-long
+          MARKETPLACE_TOKEN_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
 
   backend-build:
     name: Backend — Build
