@@ -8,32 +8,12 @@ import type { FastifyInstance } from 'fastify'
 
 /** Adds Sentry request tracing and error capturing to Fastify. */
 export async function sentryPlugin(app: FastifyInstance): Promise<void> {
-  // Attach Sentry trace headers to every request
-  app.addHook('onRequest', async (request) => {
-    const transaction = Sentry.startTransaction({
-      op: 'http.server',
-      name: `${request.method} ${request.routerPath ?? request.url}`,
-    })
-    ;(request as unknown as { sentryTransaction: Sentry.Transaction }).sentryTransaction =
-      transaction
-    Sentry.getCurrentHub().configureScope((scope) => {
-      scope.setSpan(transaction)
-    })
-  })
-
-  // Finish the transaction on response
-  app.addHook('onResponse', async (request, reply) => {
-    const tx = (
-      request as unknown as { sentryTransaction?: Sentry.Transaction }
-    ).sentryTransaction
-    if (tx) {
-      tx.setHttpStatus(reply.statusCode)
-      tx.finish()
-    }
-  })
-
-  // Capture unhandled errors
+  // 🚨 Les hooks 'onRequest' et 'onResponse' ont été supprimés.
+  // Sentry v8 intercepte automatiquement les requêtes HTTP pour le tracing.
+  
+  // ✅ On garde uniquement la capture des erreurs avec ton format personnalisé
   app.setErrorHandler(async (error, request, reply) => {
+    // Sentry capture l'erreur et y attache le contexte de la requête
     Sentry.captureException(error, {
       extra: {
         url: request.url,
@@ -41,6 +21,8 @@ export async function sentryPlugin(app: FastifyInstance): Promise<void> {
         params: request.params,
       },
     })
+
+    // Ta logique de réponse personnalisée reste intacte
     const status = error.statusCode ?? 500
     reply.status(status).send({
       error: status >= 500 ? 'Internal Server Error' : error.message,
