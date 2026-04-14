@@ -31,7 +31,7 @@ export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
 
   // Store raw body for Stripe webhook
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
-    ;(req as any).rawBody = body
+    (req as any).rawBody = body
     try {
       done(null, JSON.parse(body.toString()))
     } catch (err) {

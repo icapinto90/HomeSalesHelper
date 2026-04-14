@@ -68,9 +68,11 @@ jobs:
       - run: npm run db:migrate:test
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/homesalehelper_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/homesalehelper_test
       - run: npm test
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/homesalehelper_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/homesalehelper_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
 
