@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaClient, MessageDirection, Platform } from '@prisma/client'
+import { PrismaClient, MessageDirection, Platform, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { authMiddleware } from '../middleware/auth'
 
@@ -32,7 +32,7 @@ export async function messageRoutes(
       listingId?: string
     }
 
-    const where: Parameters<typeof prisma.message.findMany>[0]['where'] = {
+    const where: Prisma.MessageWhereInput = {
       userId: request.userId,
     }
     if (unread === 'true') where.readAt = null

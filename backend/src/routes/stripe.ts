@@ -4,7 +4,13 @@ import Stripe from 'stripe'
 import { env } from '../config/env'
 import { authMiddleware } from '../middleware/auth'
 
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2024-12-18.acacia' })
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    rawBody?: boolean
+  }
+}
+
+const stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
 
 const PLAN_PRICE_ID = process.env.STRIPE_PRICE_ID ?? '' // e.g. price_xxx from Stripe dashboard
 const PLAN_AMOUNT = 999 // $9.99 in cents

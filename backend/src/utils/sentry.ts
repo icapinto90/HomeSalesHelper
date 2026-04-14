@@ -6,29 +6,26 @@
 import * as Sentry from '@sentry/node'
 import type { FastifyInstance } from 'fastify'
 
+type Span = ReturnType<typeof Sentry.startInactiveSpan>
+type RequestWithSpan = { _sentrySpan?: Span }
+
 /** Adds Sentry request tracing and error capturing to Fastify. */
 export async function sentryPlugin(app: FastifyInstance): Promise<void> {
-  // Attach Sentry trace headers to every request
+  // Attach Sentry trace span to every request
   app.addHook('onRequest', async (request) => {
-    const transaction = Sentry.startTransaction({
+    const span = Sentry.startInactiveSpan({
       op: 'http.server',
       name: `${request.method} ${request.routerPath ?? request.url}`,
     })
-    ;(request as unknown as { sentryTransaction: Sentry.Transaction }).sentryTransaction =
-      transaction
-    Sentry.getCurrentHub().configureScope((scope) => {
-      scope.setSpan(transaction)
-    })
+    ;(request as unknown as RequestWithSpan)._sentrySpan = span
   })
 
-  // Finish the transaction on response
+  // Finish the span on response
   app.addHook('onResponse', async (request, reply) => {
-    const tx = (
-      request as unknown as { sentryTransaction?: Sentry.Transaction }
-    ).sentryTransaction
-    if (tx) {
-      tx.setHttpStatus(reply.statusCode)
-      tx.finish()
+    const span = (request as unknown as RequestWithSpan)._sentrySpan
+    if (span) {
+      span.setAttribute('http.response.status_code', reply.statusCode)
+      span.end()
     }
   })
 
