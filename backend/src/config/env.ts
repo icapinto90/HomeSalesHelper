@@ -37,10 +37,9 @@ const envSchema = z.object({
   // Security
   TOKEN_ENCRYPTION_KEY: z.string().length(64), // 32 bytes hex
 
-  // Firebase (push notifications)
-  FIREBASE_PROJECT_ID: z.string().min(1),
-  FIREBASE_PRIVATE_KEY: z.string().min(1),
-  FIREBASE_CLIENT_EMAIL: z.string().email(),
+  // Expo Push Notifications (replaces Firebase — works natively with Expo mobile app)
+  // Optional: set to avoid rate-limiting in production (Expo dashboard → Access Tokens)
+  EXPO_ACCESS_TOKEN: z.string().optional(),
 
   // App URL
   APP_URL: z.string().url().default('http://localhost:3000'),
