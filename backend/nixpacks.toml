@@ -1,0 +1,17 @@
+# Nixpacks build configuration for Railway
+# Ensures Node.js 22 is used regardless of monorepo root detection
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = [
+  "npm run build",
+  "npx prisma generate"
+]
+
+[start]
+cmd = "node dist/server.js"
