@@ -36,7 +36,7 @@ function MessageBubble({ message }: { message: Message }) {
         <Text className="text-neutral-600 text-xs">
           {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
-        {!message.read && !isOutbound && (
+        {!message.readAt && !isOutbound && (
           <View className="w-2 h-2 bg-primary rounded-full ml-1" />
         )}
       </View>

@@ -203,12 +203,15 @@ export async function buildTestApp(prisma: ReturnType<typeof makeMockPrisma>) {
   const { platformAccountRoutes } = await import('../../src/routes/platform-accounts')
   const { messageRoutes } = await import('../../src/routes/messages')
   const { stripeRoutes } = await import('../../src/routes/stripe')
+  const { errorHandler } = await import('../../src/middleware/error')
 
   const app = Fastify({ logger: false })
 
   await app.register(helmet)
   await app.register(cors, { origin: true })
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } })
+
+  app.setErrorHandler(errorHandler)
 
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
     ;(req as any).rawBody = body

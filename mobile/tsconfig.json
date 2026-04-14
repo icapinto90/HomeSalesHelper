@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "types": ["nativewind/types"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -10,5 +11,6 @@
       "@api/*": ["src/api/*"],
       "@types/*": ["src/types/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "__tests__"]
 }

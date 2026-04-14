@@ -46,7 +46,7 @@ describe('AI routes', () => {
       method: 'POST',
       url: '/ai/generate',
       headers: AUTH_HEADER,
-      payload: { listingId: 'listing-uuid-1', language: 'en', tone: 'casual' },
+      payload: { listingId: '11111111-1111-1111-1111-111111111111', language: 'en', tone: 'casual' },
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -60,7 +60,7 @@ describe('AI routes', () => {
       method: 'POST',
       url: '/ai/generate',
       headers: AUTH_HEADER,
-      payload: { listingId: 'nonexistent-uuid' },
+      payload: { listingId: '99999999-9999-9999-9999-999999999999' },
     })
     expect(res.statusCode).toBe(404)
   })
