@@ -22,7 +22,7 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Run DB Migrations (production)
-        working-directory: HomeSalesHelper
+        working-directory: backend
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
         run: railway run --service HomeSalesHelper npx prisma migrate deploy
