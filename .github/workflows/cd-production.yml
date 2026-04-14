@@ -25,7 +25,7 @@ jobs:
         working-directory: backend
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
-        run: railway run --service HomeSalesHelper npx prisma migrate deploy
+        run: railway run --service HomeSalesHelper npx prisma@5.22.0 migrate deploy
 
       - name: Deploy Backend to Railway Production
         working-directory: backend
