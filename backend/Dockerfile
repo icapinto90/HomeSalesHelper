@@ -3,6 +3,8 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+RUN apk add --no-cache python3 make g++
+
 COPY package*.json ./
 RUN npm ci
 
@@ -16,9 +18,13 @@ FROM node:22-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
+RUN apk add --no-cache --virtual .build-deps python3 make g++
+
 # Install only production dependencies
 COPY package*.json ./
 RUN npm ci --omit=dev
+
+RUN apk del .build-deps
 
 # Copy compiled output and Prisma client
 COPY --from=builder /app/dist ./dist
