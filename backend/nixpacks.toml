@@ -2,7 +2,7 @@
 # Ensures Node.js 22 is used regardless of monorepo root detection
 
 [phases.setup]
-nixPkgs = ["nodejs_22", "npm-9_x"]
+nixPkgs = ["nodejs_22", "npm-9_x", 'python3', 'build-essential']
 
 [phases.install]
 cmds = ["npm ci"]
