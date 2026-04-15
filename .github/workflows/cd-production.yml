@@ -36,7 +36,7 @@ jobs:
       - name: Health-check Production
         run: |
           sleep 30
-          curl --fail --retry 5 --retry-delay 10 \
+          curl --fail --retry 5 --retry-delay 25 \
             "${{ vars.PRODUCTION_URL }}/health" || exit 1
 
       - name: Notify Sentry — Production Deploy
