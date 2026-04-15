@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y openssl python3 make g++
 
 COPY package*.json ./
 RUN npm ci
@@ -18,7 +18,7 @@ FROM node:22-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache --virtual .build-deps python3 make g++
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install only production dependencies
 COPY package*.json ./
