@@ -1,5 +1,9 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
+# Base image: node:22-alpine (Alpine Linux 3.21)
 FROM node:22-alpine AS builder
+
+# Apply latest OS-level security patches from Alpine repos
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -11,7 +15,11 @@ RUN npx prisma generate
 RUN npm run build
 
 # ── Production stage ──────────────────────────────────────────────────────────
+# Base image: node:22-alpine (Alpine Linux 3.21)
 FROM node:22-alpine AS production
+
+# Apply latest OS-level security patches from Alpine repos
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 ENV NODE_ENV=production
