@@ -31,7 +31,7 @@ jobs:
         working-directory: backend
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-        run: railway up --service backend --detach
+        run: railway up --service HomeSalesHelper --detach
 
       - name: Health-check Staging
         run: |
