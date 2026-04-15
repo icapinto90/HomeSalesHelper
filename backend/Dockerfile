@@ -1,7 +1,7 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
-WORKDIR /app 
+WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
