@@ -41,8 +41,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^12.4.0",
+    "@testing-library/react-native": "^13.2.0",
     "@types/react": "~19.2.14",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~55.0.0",
@@ -53,7 +52,7 @@
   "jest": {
     "preset": "jest-expo",
     "setupFilesAfterEnv": [
-      "@testing-library/jest-native/extend-expect"
+      "@testing-library/react-native/extend-expect"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|react-native-reanimated)"
