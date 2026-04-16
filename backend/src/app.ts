@@ -8,6 +8,7 @@ import { Redis } from 'ioredis'
 import { env } from './config/env'
 import { logger } from './utils/logger'
 import { errorHandler } from './middleware/error'
+import { posthogPlugin } from './plugins/posthog'
 import { healthRoutes } from './routes/health'
 import { authRoutes } from './routes/auth'
 import { listingRoutes } from './routes/listings'
@@ -40,6 +41,7 @@ export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
   })
 
   // ── Plugins ───────────────────────────────────────────────────────────────
+  await app.register(posthogPlugin)
   await app.register(helmet)
   await app.register(cors, { origin: true })
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } }) // 20 MB
@@ -55,15 +57,15 @@ export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   await app.register(healthRoutes)
-  await app.register(authRoutes, { prefix: '/auth', prisma })
-  await app.register(listingRoutes, { prefix: '/listings', prisma })
+  await app.register(authRoutes, { prefix: '/auth', prisma, posthog: app.posthog })
+  await app.register(listingRoutes, { prefix: '/listings', prisma, posthog: app.posthog })
   await app.register(photoRoutes, { prefix: '/photos', prisma })
-  await app.register(aiRoutes, { prefix: '/ai', prisma })
+  await app.register(aiRoutes, { prefix: '/ai', prisma, posthog: app.posthog })
   await app.register(pricingRoutes, { prefix: '/pricing', prisma })
   await app.register(publishRoutes, { prefix: '/listings', prisma })
   await app.register(platformAccountRoutes, { prefix: '/platform-accounts', prisma })
   await app.register(messageRoutes, { prefix: '/messages', prisma })
-  await app.register(stripeRoutes, { prefix: '/stripe', prisma })
+  await app.register(stripeRoutes, { prefix: '/stripe', prisma, posthog: app.posthog })
 
   // ── Graceful shutdown ─────────────────────────────────────────────────────
   const shutdown = async (): Promise<void> => {

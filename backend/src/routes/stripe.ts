@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify'
 import { PrismaClient, SubscriptionStatus } from '@prisma/client'
+import { PostHog } from 'posthog-node'
 import Stripe from 'stripe'
 import { env } from '../config/env'
 import { authMiddleware } from '../middleware/auth'
@@ -17,9 +18,9 @@ const PLAN_AMOUNT = 999 // $9.99 in cents
 
 export async function stripeRoutes(
   app: FastifyInstance,
-  opts: { prisma: PrismaClient },
+  opts: { prisma: PrismaClient; posthog: PostHog | null },
 ): Promise<void> {
-  const { prisma } = opts
+  const { prisma, posthog } = opts
 
   // ── Authenticated routes ──────────────────────────────────────────────────
 
@@ -179,6 +180,14 @@ export async function stripeRoutes(
               currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             },
           })
+
+          if (event.type === 'customer.subscription.created' && subscription.status === 'active') {
+            posthog?.capture({
+              distinctId: userId,
+              event: 'payment_completed',
+              properties: { stripeSubId: subscription.id, plan: 'pro' },
+            })
+          }
           break
         }
 

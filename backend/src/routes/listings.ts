@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { PrismaClient, ListingStatus } from '@prisma/client'
+import { PostHog } from 'posthog-node'
 import { z } from 'zod'
 import { authMiddleware } from '../middleware/auth'
 
@@ -16,9 +17,9 @@ const updateListingSchema = createListingSchema.partial()
 
 export async function listingRoutes(
   app: FastifyInstance,
-  opts: { prisma: PrismaClient },
+  opts: { prisma: PrismaClient; posthog: PostHog | null },
 ): Promise<void> {
-  const { prisma } = opts
+  const { prisma, posthog } = opts
 
   // Protect all routes
   app.addHook('preHandler', authMiddleware)
@@ -47,6 +48,13 @@ export async function listingRoutes(
         status: ListingStatus.DRAFT,
       },
     })
+
+    posthog?.capture({
+      distinctId: request.userId,
+      event: 'listing_created',
+      properties: { listingId: listing.id, category: listing.category, currency: listing.currency, language: listing.language },
+    })
+
     return reply.status(201).send(listing)
   })
 

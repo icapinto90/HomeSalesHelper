@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { PrismaClient } from '@prisma/client'
+import { PostHog } from 'posthog-node'
 import { z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '../config/env'
@@ -19,9 +20,9 @@ const loginSchema = z.object({
 
 export async function authRoutes(
   app: FastifyInstance,
-  opts: { prisma: PrismaClient },
+  opts: { prisma: PrismaClient; posthog: PostHog | null },
 ): Promise<void> {
-  const { prisma } = opts
+  const { prisma, posthog } = opts
 
   // POST /auth/signup
   app.post('/signup', async (request, reply) => {
@@ -57,6 +58,9 @@ export async function authRoutes(
     if (signInError || !session.session) {
       return reply.status(201).send({ user, token: null })
     }
+
+    posthog?.identify({ distinctId: user.id, properties: { email: body.email, name: body.name ?? null } })
+    posthog?.capture({ distinctId: user.id, event: 'user_signed_up', properties: { email: body.email } })
 
     return reply.status(201).send({
       user,

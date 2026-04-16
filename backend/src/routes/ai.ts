@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { PrismaClient } from '@prisma/client'
+import { PostHog } from 'posthog-node'
 import { z } from 'zod'
 import { ImageAnnotatorClient } from '@google-cloud/vision'
 import OpenAI from 'openai'
@@ -30,9 +31,9 @@ const LANGUAGE_NAMES: Record<string, string> = {
 
 export async function aiRoutes(
   app: FastifyInstance,
-  opts: { prisma: PrismaClient },
+  opts: { prisma: PrismaClient; posthog: PostHog | null },
 ): Promise<void> {
-  const { prisma } = opts
+  const { prisma, posthog } = opts
 
   app.addHook('preHandler', authMiddleware)
 
@@ -100,6 +101,12 @@ export async function aiRoutes(
       return reply.status(404).send({ error: 'Listing not found' })
     }
 
+    posthog?.capture({
+      distinctId: request.userId,
+      event: 'ai_analysis_requested',
+      properties: { listingId: listing.id, language: body.language, tone: body.tone },
+    })
+
     const attributes = listing.detectedAttributes as Record<string, unknown> | null
     const langName = LANGUAGE_NAMES[body.language] ?? 'English'
 
@@ -147,6 +154,12 @@ Requirements:
         description: generated.description ?? listing.description,
         language: body.language,
       },
+    })
+
+    posthog?.capture({
+      distinctId: request.userId,
+      event: 'ai_analysis_completed',
+      properties: { listingId: listing.id, tokensUsed: completion.usage?.total_tokens ?? 0 },
     })
 
     return reply.send({
