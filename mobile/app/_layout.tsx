@@ -5,18 +5,22 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { useAuthStore } from '../src/store/auth.store';
 
-export default function RootLayout() {
+function AppBootstrap() {
   const { initialize, user, loading } = useAuthStore();
+  const posthog = usePostHog();
 
   useEffect(() => {
     initialize();
+    posthog?.capture('app_opened');
   }, [initialize]);
 
   useEffect(() => {
     if (!loading) {
       if (user) {
+        posthog?.identify(user.id, { email: user.email });
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/welcome');
@@ -25,18 +29,32 @@ export default function RootLayout() {
   }, [user, loading]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="listing/[id]" options={{ headerShown: true, title: 'Listing Detail', headerBackTitle: '' }} />
-          <Stack.Screen name="create" />
-          <Stack.Screen name="conversation/[id]" options={{ headerShown: true, headerBackTitle: '' }} />
-        </Stack>
-        <Toast />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="listing/[id]" options={{ headerShown: true, title: 'Listing Detail', headerBackTitle: '' }} />
+        <Stack.Screen name="create" />
+        <Stack.Screen name="conversation/[id]" options={{ headerShown: true, headerBackTitle: '' }} />
+      </Stack>
+      <Toast />
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <PostHogProvider
+      apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? ''}
+      options={{ host: 'https://app.posthog.com' }}
+      autocapture
+    >
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <AppBootstrap />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </PostHogProvider>
   );
 }

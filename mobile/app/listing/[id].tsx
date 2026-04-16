@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import Toast from 'react-native-toast-message';
+import { usePostHog } from 'posthog-react-native';
 import { PlatformBadge, StatusBadge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { useListingsStore } from '../../src/store/listings.store';
@@ -28,6 +29,11 @@ export default function ListingDetailScreen() {
   const [loading, setLoading] = useState(!listing);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    posthog?.capture('listing_viewed', { listing_id: id });
+  }, [id]);
 
   useEffect(() => {
     if (listing) return;
