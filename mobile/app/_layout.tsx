@@ -5,22 +5,18 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
-import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { useAuthStore } from '../src/store/auth.store';
 
 function AppBootstrap() {
   const { initialize, user, loading } = useAuthStore();
-  const posthog = usePostHog();
 
   useEffect(() => {
     initialize();
-    posthog?.capture('app_opened');
   }, [initialize]);
 
   useEffect(() => {
     if (!loading) {
       if (user) {
-        posthog?.identify(user.id, { email: user.email });
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/welcome');
@@ -45,16 +41,10 @@ function AppBootstrap() {
 
 export default function RootLayout() {
   return (
-    <PostHogProvider
-      apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? ''}
-      options={{ host: 'https://app.posthog.com' }}
-      autocapture
-    >
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <AppBootstrap />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    </PostHogProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppBootstrap />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

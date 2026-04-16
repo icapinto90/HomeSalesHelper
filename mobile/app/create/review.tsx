@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { usePostHog } from 'posthog-react-native';
 import { Stepper } from '../../src/components/create/Stepper';
 import { Button } from '../../src/components/ui/Button';
 import { AIBadge } from '../../src/components/ui/Badge';
@@ -14,13 +13,11 @@ const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
 export default function ReviewStep() {
   const { draft, setDraftOverrides, runAiIdentify } = useListingsStore();
   const [identifying, setIdentifying] = useState(!draft.aiResult);
-  const posthog = usePostHog();
 
   // Upload photos + run AI identification
   useEffect(() => {
     if (draft.aiResult) return;
     setIdentifying(true);
-    posthog?.capture('analysis_requested');
     runAiIdentify()
       .catch(() => {
         // AI failed silently — user can fill manually
